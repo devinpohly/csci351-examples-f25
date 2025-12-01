@@ -2,7 +2,36 @@
 #include "csapp.h"
 #include <unistd.h>
 
-#define QSIZE 10
+int queue[10];
+int head = 0;
+int len = 0;
+
+sem_t items;
+sem_t spaces;
+sem_t mutex;
+
+void produce(int x) {
+	sem_wait(&spaces);
+	sem_wait(&mutex);
+	int tail = (head + len) % 10;
+	queue[tail] = x;
+	len++;
+	sem_post(&mutex);
+	sem_post(&items);
+}
+
+int consume(void) {
+	sem_wait(&items);
+	sem_wait(&mutex);
+	int num = queue[head];
+	head++;
+	head %= 10;
+	len--;
+	sem_post(&mutex);
+	sem_post(&spaces);
+
+	return num;
+}
 
 void handle(int sig) {
 	int pid;
@@ -21,24 +50,23 @@ struct thread_args {
 };
 
 void *thread(void *arg) {
-	struct thread_args *p = arg;
-	struct thread_args args = *p;
-	free(arg);
-
 	for (;;) {
-		char buf[1024];
-		int bytes = Read(args.client, buf, sizeof(buf));
-		if (bytes == 0) {
-			break;
+		int fd = consume();
+
+		for (;;) {
+			char buf[1024];
+			int bytes = Read(fd, buf, sizeof(buf));
+			if (bytes == 0) {
+				break;
+			}
+
+			buf[0] = 'O';
+
+			Write(fd, buf, bytes);
 		}
 
-		buf[0] = 'O';
-
-		Write(args.client, buf, bytes);
+		Close(fd);
 	}
-
-	Close(args.client);
-	return NULL;
 }
 
 int main(void) {
@@ -56,15 +84,16 @@ int main(void) {
 #endif
 	Signal(SIGCHLD, handle);
 
+	for (int i = 0; i < 10; i++) {
+		pthread_t id;
+		pthread_create(&id, NULL, thread, NULL);
+	}
+
 	int listening = Open_listenfd("9999");
 
 	for (;;) {
 		int client = Accept(listening, NULL, NULL);
-
-		pthread_t id;
-		int *p = malloc(sizeof(int));
-		*p = client;
-		pthread_create(&id, NULL, thread, p);
+		produce(client);
 	}
 
 	Close(listening);

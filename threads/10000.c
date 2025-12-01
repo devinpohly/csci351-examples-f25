@@ -3,26 +3,28 @@
 #include <pthread.h>
 
 // used to guard access to counter
-pthread_mutex_t lock;
+pthread_rwlock_t rw;
 int counter = 0;
 
 int heavy_calc() {
 	usleep(1000);
+	/* printf("%d\n", counter); */
 	return 1;
 }
 
 void *thread_main(void *arg) {
 	for (int i = 0; i < 1000; i++) {
+		pthread_rwlock_rdlock(&rw);
 		int x = heavy_calc();
-		pthread_mutex_lock(&lock);
+		pthread_rwlock_unlock(&rw);
+		pthread_rwlock_wrlock(&rw);
 		counter += x;
-		counter += x;
-		pthread_mutex_unlock(&lock);
+		pthread_rwlock_unlock(&rw);
 	}
 }
 
 int main(void) {
-	pthread_mutex_init(&lock, NULL);
+	pthread_rwlock_init(&rw, NULL);
 
 	pthread_t threads[10];
 	for (int i = 0; i < 10; i++) {
@@ -36,5 +38,5 @@ int main(void) {
 
 	printf("%d\n", counter);
 
-	pthread_mutex_destroy(&lock);
+	pthread_rwlock_destroy(&rw);
 }

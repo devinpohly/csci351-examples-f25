@@ -16,7 +16,7 @@ void * thread_main(void *arg) {
 	struct thread_args a = *args;
 	sem_post(&signal);
 	
-	sleep(1);
+	usleep(rand() % 1000000);
 	printf("%d + %d = %d!\n", a.x, a.y, a.x + a.y);
 
 	pthread_exit(NULL);
@@ -24,6 +24,7 @@ void * thread_main(void *arg) {
 }
 
 int main(void) {
+	srand(time(NULL));
 	sem_init(&signal, 1, 0);
 
 	printf("hello there\n");
