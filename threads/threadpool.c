@@ -82,6 +82,10 @@ int main(void) {
 
 	Listen(listening, 10);
 #endif
+	sem_init(&items, 1, 0);
+	sem_init(&spaces, 1, 10);
+	sem_init(&mutex, 1, 1);
+
 	Signal(SIGCHLD, handle);
 
 	for (int i = 0; i < 10; i++) {
@@ -97,5 +101,9 @@ int main(void) {
 	}
 
 	Close(listening);
+
+	sem_destroy(&mutex);
+	sem_destroy(&spaces);
+	sem_destroy(&items);
 	return 0;
 }
